@@ -186,7 +186,7 @@ def main():
         headers = ["Data","Parcela","Tipo","Dias no Mês","Dias Corridos","Taxa Efetiva","Valor Pago (R$)",
                    "Juros (R$)","INCC (R$)","IPCA (R$)"]
         headers+=[f"Taxa {i+1} (R$)" for i in range(len(taxas_extras))]
-        headers+=["abatimentoização (R$)","Saldo Devedor (R$)"]
+        headers+=["abatimento (R$)","Saldo Devedor (R$)"]
         for i,h in enumerate(headers,1): cell=ws.cell(row=1,column=i,value=h); cell.fill=HEADER_FILL; cell.font=Font(bold=True)
         # inicial
         ws.append(["-"]*(len(headers)-1)+[valor_imovel])
