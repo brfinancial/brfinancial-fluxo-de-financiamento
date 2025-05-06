@@ -152,20 +152,20 @@ def main():
             total_taxas = sum(extras) + incc + ipca
             abatimento = ev['valor'] - juros - total_taxas; saldo -= abatimento
             eventos.append({**ev, 'juros': juros, 'dias_corridos': dias_corr, 'taxa_efetiva': taxa_eff,
-                            'incc': incc, 'ipca': ipca, 'taxas_extra': extras, 'abatimentoizacao': abatimento, 'saldo': saldo})
+                            'incc': incc, 'ipca': ipca, 'taxas_extra': extras, 'abatimento': abatimento, 'saldo': saldo})
             cursor += relativedelta(months=1)
         # 2) ENTREGA
         ent = adjust_day(data_entrega, dia_pagamento)
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
             saldo -= v; eventos.append({'data':ent,'tipo':desc,'valor':v,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':v,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
         for nome,val in [('Emissão CCB',TAXA_EMISSAO_CCB),('Alienação Fiduciária',TAXA_ALIENACAO_FIDUCIARIA),
                          ('Registro',TAXA_REGISTRO_FIXA)]:
             saldo += val; eventos.append({'data':ent,'tipo':'Taxa '+nome,'valor':-val,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':0,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
         fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT; saldo += fee
         eventos.append({'data':ent,'tipo':'Taxa Seguro Prestamista','valor':-fee,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':0,'saldo':saldo})
+                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
         # 3) PÓS-ENTREGA
         idx_nr, parcelas, dt_evt = 0, 0, ent
         while saldo>0 and parcelas<=420:
@@ -179,7 +179,7 @@ def main():
             total_taxas = sum(extras)+ipca+incc
             abatimento = ev['valor']-juros-total_taxas; saldo -= abatimento
             eventos.append({**ev,'parcela':parcelas,'juros':juros,'dias_corridos':dias_corr,'taxa_efetiva':taxa_eff,
-                            'incc':incc,'ipca':ipca,'taxas_extra':extras,'abatimentoizacao':abatimento,'saldo':saldo})
+                            'incc':incc,'ipca':ipca,'taxas_extra':extras,'abatimento':abatimento,'saldo':saldo})
             parcelas+=1; dt_evt=adjust_day(dt_evt+relativedelta(months=1),dia_pagamento)
         # MONTAR PLANILHA
         wb=Workbook(); ws=wb.active; ws.title=f"Financ-{cliente}"[:31]
@@ -194,7 +194,7 @@ def main():
         for ev in sorted(eventos,key=lambda x:x['data']):
             row=[ev['data'],ev.get('parcela',''),ev['tipo'],days_in_month(ev['data']),ev.get('dias_corridos',''),ev.get('taxa_efetiva',''),
                  ev.get('valor',0),ev.get('juros',0),ev.get('incc',0),ev.get('ipca',0)]
-            row+=ev.get('taxas_extra',[])+[ev.get('abatimentoizacao',0),ev.get('saldo',0)]
+            row+=ev.get('taxas_extra',[])+[ev.get('abatimento',0),ev.get('saldo',0)]
             ws.append(row)
         # linha em branco + soma
         ws.append([""]*len(headers))
