@@ -274,14 +274,22 @@ def main():
             ws.append(row)
             
         # linha em branco + soma
-        ws.append([""] * len(headers))
-        ws.append([""] * len(headers))
-        sum_row = ws.max_row
+        ws.append([""] * len(headers))   # primeira linha em branco
+        ws.append([""] * len(headers))   # segunda linha em branco
+        
+        sum_row = ws.max_row            # onde o TOTAL vai entrar
+        first_data = 3                  # primeira linha de dados (linha 1=header, 2=inicial, 3=1º evento)
+        last_data  = sum_row - 2        # pula as 2 linhas em branco
+        
+        # escreve o rótulo TOTAL
         ws.cell(row=sum_row, column=1, value="TOTAL").fill = HEADER_FILL
-        for col_idx in range(7, len(headers)-1):
+        
+        # para cada coluna de valores/taxas (col 7 até a penúltima)
+        for col_idx in range(7, len(headers)-2):
             letter = get_column_letter(col_idx)
-            ws.cell(row=sum_row, column=col_idx, value=f"=SOMA({letter}3:{letter}{sum_row-1})")
-            
+            formula = f"=SUM({letter}{first_data}:{letter}{last_data})"
+            ws.cell(row=sum_row, column=col_idx, value=formula)
+                    
         # formatação
         for col_idx, h in enumerate(headers, 1):
             for row_idx in range(2, sum_row+1):
