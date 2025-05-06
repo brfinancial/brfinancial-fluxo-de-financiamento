@@ -278,7 +278,7 @@ def main():
         ws.append([""] * len(headers))
         sum_row = ws.max_row
         ws.cell(row=sum_row, column=1, value="TOTAL").fill = HEADER_FILL
-        for col_idx in range(7, len(headers)-1):
+        for col_idx in range(7, len(headers)+1):
             letter = get_column_letter(col_idx)
             ws.cell(row=sum_row, column=col_idx, value=f"=SUM({letter}3:{letter}{sum_row-2})")
             
