@@ -150,6 +150,14 @@ def main():
         idx_nr = 0
         while True:
 
+            d_evt = adjust_day(cursor, dia_pagamento)
+            if d_evt >= data_entrega:
+                break
+            if idx_nr < len(pre_nr) and pre_nr[idx_nr]['data'] == d_evt:
+                ev = pre_nr[idx_nr]; idx_nr += 1
+            else:
+                ev = {'data': d_evt, 'tipo': 'Pré-Entrega', 'valor': capacidade_pre}
+
                                 # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
             if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
                 # pagamento extra, não é a parcela mensal normal:
@@ -159,14 +167,7 @@ def main():
                 juros, dias_corr, taxa_eff = tracker_pre.calculate(ev['data'], saldo)
 
 
-
-            d_evt = adjust_day(cursor, dia_pagamento)
-            if d_evt >= data_entrega:
-                break
-            if idx_nr < len(pre_nr) and pre_nr[idx_nr]['data'] == d_evt:
-                ev = pre_nr[idx_nr]; idx_nr += 1
-            else:
-                ev = {'data': d_evt, 'tipo': 'Pré-Entrega', 'valor': capacidade_pre}
+		
             juros, dias_corr, taxa_eff = tracker_pre.calculate(ev['data'], saldo)
             incc = saldo * TAXA_INCC; ipca = 0.0
             extras = [saldo * t['pct'] if t['periodo'] in ['pré','ambos'] else 0.0 for t in taxas_extras]
@@ -191,6 +192,13 @@ def main():
         idx_nr, parcelas, dt_evt = 0, 0, ent
         while saldo>0 and parcelas<=420:
 
+
+
+            if idx_nr<len(post_nr) and post_nr[idx_nr]['data']<=dt_evt:
+                ev = post_nr[idx_nr]; idx_nr+=1
+            else:
+                ev = {'data':dt_evt,'tipo':'Pós-Entrega','valor':capacidade_pos}
+
                                     # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
             if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
                 # pagamento extra, não é a parcela mensal normal:
@@ -200,14 +208,7 @@ def main():
                 juros, dias_corr, taxa_eff = tracker_pos.calculate(ev['data'], saldo)
 
 
-
-
-
-
-            if idx_nr<len(post_nr) and post_nr[idx_nr]['data']<=dt_evt:
-                ev = post_nr[idx_nr]; idx_nr+=1
-            else:
-                ev = {'data':dt_evt,'tipo':'Pós-Entrega','valor':capacidade_pos}
+		
             juros,dias_corr,taxa_eff = tracker_pos.calculate(ev['data'],saldo)
             ipca = saldo*TAXA_IPCA; incc = 0.0
             extras  = [saldo*t['pct'] if t['periodo'] in ['pós','ambos'] else 0.0 for t in taxas_extras]
