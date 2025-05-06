@@ -212,6 +212,8 @@ def main():
                 elif h in ["Parcela","Dias no Mês","Dias Corridos"]: cell.number_format='0'
                 elif h=="Taxa Efetiva": cell.number_format=PERCENT_FORMAT
                 else: cell.number_format=CURRENCY_FORMAT
+                elif "R$" in h or "Valor" in h or "Saldo" in h or "abatimento" in h or "Juros" in h or "INCC" in h or "IPCA" in h or "Taxa" in h:
+                    cell.number_format = CURRENCY_FORMAT
         # ajuste colunas
         for col_cells in ws.columns:
             width=max(len(str(c.value)) for c in col_cells if c.value is not None)
