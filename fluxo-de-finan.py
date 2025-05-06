@@ -203,7 +203,7 @@ def main():
         ws.cell(row=sum_row,column=1,value="TOTAL").fill=HEADER_FILL
         for col_idx in range(7,len(headers)-1):
             letter=get_column_letter(col_idx)
-            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row-2})")
+            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row})")
         # formatação
         for col_idx,h in enumerate(headers,1):
             for row_idx in range(2,sum_row+1):
@@ -212,8 +212,6 @@ def main():
                 elif h in ["Parcela","Dias no Mês","Dias Corridos"]: cell.number_format='0'
                 elif h=="Taxa Efetiva": cell.number_format=PERCENT_FORMAT
                 else: cell.number_format=CURRENCY_FORMAT
-                elif "R$" in h or "Valor" in h or "Saldo" in h or "abatimento" in h or "Juros" in h or "INCC" in h or "IPCA" in h or "Taxa" in h:
-                    cell.number_format = CURRENCY_FORMAT
         # ajuste colunas
         for col_cells in ws.columns:
             width=max(len(str(c.value)) for c in col_cells if c.value is not None)
