@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("tQual o nome do cliente?")
+    cliente = st.text_input("Qual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -275,20 +275,14 @@ def main():
             
         # linha em branco + soma
         ws.append([""] * len(headers))   # primeira linha em branco
-        ws.append([""] * len(headers))   # segunda linha em branco
-        
         sum_row = ws.max_row            # onde o TOTAL vai entrar
         first_data = 3                  # primeira linha de dados (linha 1=header, 2=inicial, 3=1º evento)
-        last_data  = sum_row - 2        # pula as 2 linhas em branco
-        
-        # escreve o rótulo TOTAL
         ws.cell(row=sum_row, column=1, value="TOTAL").fill = HEADER_FILL
-        
-        # para cada coluna de valores/taxas (col 7 até a penúltima)
-        for col_idx in range(7, len(headers)-2):
+        for col_idx in range(7, len(headers)-1):
             letter = get_column_letter(col_idx)
             formula = f"=SUM({letter}{first_data}:{letter}{last_data})"
             ws.cell(row=sum_row, column=col_idx, value=formula)
+            
                     
         # formatação
         for col_idx, h in enumerate(headers, 1):
