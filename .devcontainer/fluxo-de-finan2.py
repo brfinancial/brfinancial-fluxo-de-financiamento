@@ -296,6 +296,14 @@ def main():
         for col_cells in ws.columns:
             width = max(len(str(c.value)) for c in col_cells if c.value is not None)
             ws.column_dimensions[get_column_letter(col_cells[0].column)].width = width + 2
+
+        # Se excedeu parcelas e ainda há saldo devedor
+        if parcelas >= 420 and saldo > 0:
+            st.error(
+                f"Financiamento de {cliente} não é possível! "
+                "A quantidade de parcelas excede 420 e o saldo devedor continua positivo."
+                )
+        
         # download
         buf = BytesIO()
         wb.save(buf)
