@@ -273,19 +273,26 @@ def main():
             row += ev.get('taxas_extra', []) + [ev.get('abatimentoizacao', 0), ev.get('saldo', 0)]
             ws.append(row)
             
-        # --- Depois de já ter escrito todas as linhas de 'eventos' ---
-        last_data_row = ws.max_row   # aqui paramos no fim dos dados de fato
+        # --- define onde acabam os dados de fato ---
+        last_data_row = ws.max_row
         
-        # 1) insere uma linha em branco
+        # 1) insere UMA linha em branco
         ws.append([''] * len(headers))
+        
+        # 2) insere a linha do TOTAL
         ws.append([''] * len(headers))
-        total_row = ws.max_row       # posição do TOTAL
-        ws.cell(row=total_row, column=1, value="TOTAL").fill = HEADER_FILL
-        for col_idx in range(7, len(headers)-1):
+        total_row = ws.max_row
+        
+        # 3) escreve o rótulo TOTAL e aplica o HEADER_FILL
+        total_cell = ws.cell(row=total_row, column=1)
+        total_cell.value = "TOTAL"
+        total_cell.fill  = HEADER_FILL
+        
+        # 4) monta as fórmulas SUM(…) do cabeçalho 7 até a penúltima coluna
+        for col_idx in range(7, len(headers) - 1):
             letter = get_column_letter(col_idx)
             formula = f"=SUM({letter}3:{letter}{last_data_row})"
             ws.cell(row=total_row, column=col_idx, value=formula)
-
                 
         for col_idx in range(7, len(headers)-1):
             letter = get_column_letter(col_idx)
