@@ -158,14 +158,14 @@ def main():
         ent = adjust_day(data_entrega, dia_pagamento)
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
             saldo -= v; eventos.append({'data':ent,'tipo':desc,'valor':v,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})
         for nome,val in [('Emissão CCB',TAXA_EMISSAO_CCB),('Alienação Fiduciária',TAXA_ALIENACAO_FIDUCIARIA),
                          ('Registro',TAXA_REGISTRO_FIXA)]:
             saldo += val; eventos.append({'data':ent,'tipo':'Taxa '+nome,'valor':-val,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})
         fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT; saldo += fee
         eventos.append({'data':ent,'tipo':'Taxa Seguro Prestamista','valor':-fee,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                        'incc':0,'ipca':0,'taxas_extra':0,'abatimento':v,'saldo':saldo})
+                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':v,'saldo':saldo})
         # 3) PÓS-ENTREGA
         idx_nr, parcelas, dt_evt = 0, 0, ent
         while saldo>0 and parcelas<=420:
