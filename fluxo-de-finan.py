@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("tQual o nome do cliente?")
+    cliente = st.text_input("Qual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -116,28 +116,18 @@ def main():
     # Geração da planilha
     if st.button("Gerar Planilha"):
         # Eventos agregados
-
-        # Ao formar o non_rec, preserve o flag assoc:
         for series in semi_series:
             for n in range(100):
                 d = series['d0'] + relativedelta(months=6 * n)
                 if series['assoc']:
-                    # pagamento encaixado na parcela mensal
                     d = adjust_day(d, dia_pagamento)
-                non_rec.append({
-                    'data': d,
-                    'tipo': 'Pagamento Semestral',
-                    'valor': series['v'],
-                    'assoc': series['assoc']
-                })
-
+                non_rec.append({'data': d, 'tipo': 'Pagamento Semestral', 'valor': series['v']})
         for series in annual_series:
             for n in range(100):
                 d = series['d0'] + relativedelta(years=n)
                 if series['assoc']:
                     d = adjust_day(d, dia_pagamento)
                 non_rec.append({'data': d, 'tipo': 'Pagamento Anual', 'valor': series['v']})
-
         # Separar pré e pós
         pre_nr = sorted([e for e in non_rec if e['data'] < data_entrega], key=lambda x: x['data'])
         post_nr = sorted([e for e in non_rec if e['data'] >= data_entrega], key=lambda x: x['data'])
@@ -149,7 +139,6 @@ def main():
         cursor = data_inicio_pre
         idx_nr = 0
         while True:
-
             d_evt = adjust_day(cursor, dia_pagamento)
             if d_evt >= data_entrega:
                 break
@@ -157,72 +146,47 @@ def main():
                 ev = pre_nr[idx_nr]; idx_nr += 1
             else:
                 ev = {'data': d_evt, 'tipo': 'Pré-Entrega', 'valor': capacidade_pre}
-
-                                # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
-            if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
-                # pagamento extra, não é a parcela mensal normal:
-                juros, dias_corr, taxa_eff = 0.0, 0, 0.0
-            else:
-                # cálculo normal de juros para pagamento recorrente ou não‐associado
-                juros, dias_corr, taxa_eff = tracker_pre.calculate(ev['data'], saldo)
-
-
-		
             juros, dias_corr, taxa_eff = tracker_pre.calculate(ev['data'], saldo)
             incc = saldo * TAXA_INCC; ipca = 0.0
             extras = [saldo * t['pct'] if t['periodo'] in ['pré','ambos'] else 0.0 for t in taxas_extras]
             total_taxas = sum(extras) + incc + ipca
             abatimento = ev['valor'] - juros - total_taxas; saldo -= abatimento
             eventos.append({**ev, 'juros': juros, 'dias_corridos': dias_corr, 'taxa_efetiva': taxa_eff,
-                            'incc': incc, 'ipca': ipca, 'taxas_extra': extras, 'abatimento': abatimento, 'saldo': saldo})
+                            'incc': incc, 'ipca': ipca, 'taxas_extra': extras, 'abatimentoizacao': abatimento, 'saldo': saldo})
             cursor += relativedelta(months=1)
         # 2) ENTREGA
         ent = adjust_day(data_entrega, dia_pagamento)
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
             saldo -= v; eventos.append({'data':ent,'tipo':desc,'valor':v,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':v,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':v,'saldo':saldo})
         for nome,val in [('Emissão CCB',TAXA_EMISSAO_CCB),('Alienação Fiduciária',TAXA_ALIENACAO_FIDUCIARIA),
                          ('Registro',TAXA_REGISTRO_FIXA)]:
             saldo += val; eventos.append({'data':ent,'tipo':'Taxa '+nome,'valor':-val,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':-val,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':0,'saldo':saldo})
         fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT; saldo += fee
         eventos.append({'data':ent,'tipo':'Taxa Seguro Prestamista','valor':-fee,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':-fee,'saldo':saldo})
+                        'incc':0,'ipca':0,'taxas_extra':[],'abatimentoizacao':0,'saldo':saldo})
         # 3) PÓS-ENTREGA
         idx_nr, parcelas, dt_evt = 0, 0, ent
         while saldo>0 and parcelas<=420:
-
-
-
             if idx_nr<len(post_nr) and post_nr[idx_nr]['data']<=dt_evt:
                 ev = post_nr[idx_nr]; idx_nr+=1
             else:
                 ev = {'data':dt_evt,'tipo':'Pós-Entrega','valor':capacidade_pos}
-
-                                    # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
-            if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
-                # pagamento extra, não é a parcela mensal normal:
-                juros, dias_corr, taxa_eff = 0.0, 0, 0.0
-            else:
-                # cálculo normal de juros para pagamento recorrente ou não‐associado
-                juros, dias_corr, taxa_eff = tracker_pos.calculate(ev['data'], saldo)
-
-
-		
             juros,dias_corr,taxa_eff = tracker_pos.calculate(ev['data'],saldo)
             ipca = saldo*TAXA_IPCA; incc = 0.0
             extras  = [saldo*t['pct'] if t['periodo'] in ['pós','ambos'] else 0.0 for t in taxas_extras]
             total_taxas = sum(extras)+ipca+incc
             abatimento = ev['valor']-juros-total_taxas; saldo -= abatimento
             eventos.append({**ev,'parcela':parcelas,'juros':juros,'dias_corridos':dias_corr,'taxa_efetiva':taxa_eff,
-                            'incc':incc,'ipca':ipca,'taxas_extra':extras,'abatimento':abatimento,'saldo':saldo})
+                            'incc':incc,'ipca':ipca,'taxas_extra':extras,'abatimentoizacao':abatimento,'saldo':saldo})
             parcelas+=1; dt_evt=adjust_day(dt_evt+relativedelta(months=1),dia_pagamento)
         # MONTAR PLANILHA
         wb=Workbook(); ws=wb.active; ws.title=f"Financ-{cliente}"[:31]
         headers = ["Data","Parcela","Tipo","Dias no Mês","Dias Corridos","Taxa Efetiva","Valor Pago (R$)",
                    "Juros (R$)","INCC (R$)","IPCA (R$)"]
         headers+=[f"Taxa {i+1} (R$)" for i in range(len(taxas_extras))]
-        headers+=["abatimento (R$)","Saldo Devedor (R$)"]
+        headers+=["abatimentoização (R$)","Saldo Devedor (R$)"]
         for i,h in enumerate(headers,1): cell=ws.cell(row=1,column=i,value=h); cell.fill=HEADER_FILL; cell.font=Font(bold=True)
         # inicial
         ws.append(["-"]*(len(headers)-1)+[valor_imovel])
@@ -230,18 +194,15 @@ def main():
         for ev in sorted(eventos,key=lambda x:x['data']):
             row=[ev['data'],ev.get('parcela',''),ev['tipo'],days_in_month(ev['data']),ev.get('dias_corridos',''),ev.get('taxa_efetiva',''),
                  ev.get('valor',0),ev.get('juros',0),ev.get('incc',0),ev.get('ipca',0)]
-            taxas = ev.get('taxas_extra') or []  # Garante que será uma lista
-            row+=ev.get('taxas_extra',[])+[ev.get('abatimento',0),ev.get('saldo',0)]
+            row+=ev.get('taxas_extra',[])+[ev.get('abatimentoizacao',0),ev.get('saldo',0)]
             ws.append(row)
         # linha em branco + soma
         ws.append([""]*len(headers))
-        sum_row = ws.max_row + 1
-        ws.cell(row=sum_row, column=1, value="TOTAL").fill=HEADER_FILL
-        
+        sum_row=ws.max_row+1
+        ws.cell(row=sum_row,column=1,value="TOTAL").fill=HEADER_FILL
         for col_idx in range(7,len(headers)-1):
             letter=get_column_letter(col_idx)
-            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row})-2")
-            
+            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row-2})")
         # formatação
         for col_idx,h in enumerate(headers,1):
             for row_idx in range(2,sum_row+1):
