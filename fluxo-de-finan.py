@@ -194,16 +194,18 @@ def main():
         for ev in sorted(eventos,key=lambda x:x['data']):
             row=[ev['data'],ev.get('parcela',''),ev['tipo'],days_in_month(ev['data']),ev.get('dias_corridos',''),ev.get('taxa_efetiva',''),
                  ev.get('valor',0),ev.get('juros',0),ev.get('incc',0),ev.get('ipca',0)]
-            taxas = ev.get('taxas_extra') or []  # Garante que será uma lista
+            taxas = ev.get('taxas_extra') or []
             row+=ev.get('taxas_extra',[])+[ev.get('abatimento',0),ev.get('saldo',0)]
             ws.append(row)
         # linha em branco + soma
         ws.append([""]*len(headers))
-        sum_row=ws.max_row+1
-        ws.cell(row=sum_row,column=1,value="TOTAL").fill=HEADER_FILL
-        for col_idx in range(7,len(headers)-1):
+        sum_row = ws.max_row + 1
+        ws.cell(row=sum_row, column=1, value="TOTAL").fill=HEADER_FILL
+        
+        # Ajuste no intervalo das colunas para somar (Juros até Taxas Extras)
+        for col_idx in range(8, len(headers)-1):  # Corrigido para começar em 8 (Juros)
             letter=get_column_letter(col_idx)
-            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row})-2")
+            ws.cell(row=sum_row,column=col_idx,value=f"=SUM({letter}3:{letter}{sum_row-1})")  # Removido o "-2"            
         # formatação
         for col_idx,h in enumerate(headers,1):
             for row_idx in range(2,sum_row+1):
@@ -216,6 +218,23 @@ def main():
         for col_cells in ws.columns:
             width=max(len(str(c.value)) for c in col_cells if c.value is not None)
             ws.column_dimensions[get_column_letter(col_cells[0].column)].width=width+2
+
+        # 2) ENTREGA
+        ent = adjust_day(data_entrega, dia_pagamento)
+        # Correção para FGTS e Financiamento Banco
+        for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
+            saldo -= v
+            eventos.append({'data':ent,'tipo':desc,'valor':v,'juros':0,'dias_corridos':'','taxa_efetiva':'',
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':v,'saldo':saldo})  # 'abatimento' corrigido para v
+        for nome,val in [('Emissão CCB',TAXA_EMISSAO_CCB),('Alienação Fiduciária',TAXA_ALIENACAO_FIDUCIARIA),
+                         ('Registro',TAXA_REGISTRO_FIXA)]:
+            saldo += val
+            eventos.append({'data':ent,'tipo':'Taxa '+nome,'valor':-val,'juros':0,'dias_corridos':'','taxa_efetiva':'',
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})
+        fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT; saldo += fee
+        # Correção para Seguro Prestamista
+        eventos.append({'data':ent,'tipo':'Taxa Seguro Prestamista','valor':-fee,'juros':0,'dias_corridos':'','taxa_efetiva':'',
+                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})  # 'abatimento' corrigido para 0
 
         # Se excedeu parcelas e ainda há saldo devedor
         if parcelas >= 420 and saldo > 0:
