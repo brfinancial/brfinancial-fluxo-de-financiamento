@@ -194,6 +194,7 @@ def main():
         for ev in sorted(eventos,key=lambda x:x['data']):
             row=[ev['data'],ev.get('parcela',''),ev['tipo'],days_in_month(ev['data']),ev.get('dias_corridos',''),ev.get('taxa_efetiva',''),
                  ev.get('valor',0),ev.get('juros',0),ev.get('incc',0),ev.get('ipca',0)]
+            taxas = ev.get('taxas_extra') or []  # Garante que será uma lista
             row+=ev.get('taxas_extra',[])+[ev.get('abatimento',0),ev.get('saldo',0)]
             ws.append(row)
         # linha em branco + soma
