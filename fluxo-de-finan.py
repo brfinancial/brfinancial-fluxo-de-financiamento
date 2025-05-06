@@ -116,18 +116,28 @@ def main():
     # Geração da planilha
     if st.button("Gerar Planilha"):
         # Eventos agregados
+
+        # Ao formar o non_rec, preserve o flag assoc:
         for series in semi_series:
             for n in range(100):
                 d = series['d0'] + relativedelta(months=6 * n)
                 if series['assoc']:
+                    # pagamento encaixado na parcela mensal
                     d = adjust_day(d, dia_pagamento)
-                non_rec.append({'data': d, 'tipo': 'Pagamento Semestral', 'valor': series['v']})
+                non_rec.append({
+                    'data': d,
+                    'tipo': 'Pagamento Semestral',
+                    'valor': series['v'],
+                    'assoc': series['assoc']
+                })
+
         for series in annual_series:
             for n in range(100):
                 d = series['d0'] + relativedelta(years=n)
                 if series['assoc']:
                     d = adjust_day(d, dia_pagamento)
                 non_rec.append({'data': d, 'tipo': 'Pagamento Anual', 'valor': series['v']})
+
         # Separar pré e pós
         pre_nr = sorted([e for e in non_rec if e['data'] < data_entrega], key=lambda x: x['data'])
         post_nr = sorted([e for e in non_rec if e['data'] >= data_entrega], key=lambda x: x['data'])
@@ -139,6 +149,17 @@ def main():
         cursor = data_inicio_pre
         idx_nr = 0
         while True:
+
+                                # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
+            if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
+                # pagamento extra, não é a parcela mensal normal:
+                juros, dias_corr, taxa_eff = 0.0, 0, 0.0
+            else:
+                # cálculo normal de juros para pagamento recorrente ou não‐associado
+                juros, dias_corr, taxa_eff = tracker_pre.calculate(ev['data'], saldo)
+
+
+
             d_evt = adjust_day(cursor, dia_pagamento)
             if d_evt >= data_entrega:
                 break
@@ -158,17 +179,31 @@ def main():
         ent = adjust_day(data_entrega, dia_pagamento)
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
             saldo -= v; eventos.append({'data':ent,'tipo':desc,'valor':v,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':v,'saldo':saldo})
         for nome,val in [('Emissão CCB',TAXA_EMISSAO_CCB),('Alienação Fiduciária',TAXA_ALIENACAO_FIDUCIARIA),
                          ('Registro',TAXA_REGISTRO_FIXA)]:
             saldo += val; eventos.append({'data':ent,'tipo':'Taxa '+nome,'valor':-val,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':0,'saldo':saldo})
+                                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':-val,'saldo':saldo})
         fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT; saldo += fee
         eventos.append({'data':ent,'tipo':'Taxa Seguro Prestamista','valor':-fee,'juros':0,'dias_corridos':'','taxa_efetiva':'',
-                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':v,'saldo':saldo})
+                        'incc':0,'ipca':0,'taxas_extra':[],'abatimento':-fee,'saldo':saldo})
         # 3) PÓS-ENTREGA
         idx_nr, parcelas, dt_evt = 0, 0, ent
         while saldo>0 and parcelas<=420:
+
+                                    # dentro do while pré‑entrega ou pós‑entrega, onde você faz:
+            if ev['tipo'] in ('Pagamento Semestral', 'Pagamento Anual') and not ev.get('assoc', False):
+                # pagamento extra, não é a parcela mensal normal:
+                juros, dias_corr, taxa_eff = 0.0, 0, 0.0
+            else:
+                # cálculo normal de juros para pagamento recorrente ou não‐associado
+                juros, dias_corr, taxa_eff = tracker_pos.calculate(ev['data'], saldo)
+
+
+
+
+
+
             if idx_nr<len(post_nr) and post_nr[idx_nr]['data']<=dt_evt:
                 ev = post_nr[idx_nr]; idx_nr+=1
             else:
