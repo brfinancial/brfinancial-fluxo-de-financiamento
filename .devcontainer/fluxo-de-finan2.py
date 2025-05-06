@@ -273,11 +273,20 @@ def main():
             row += ev.get('taxas_extra', []) + [ev.get('abatimentoizacao', 0), ev.get('saldo', 0)]
             ws.append(row)
             
-        # linha em branco + soma
-        ws.append([""] * len(headers))   # primeira linha em branco
-        sum_row = ws.max_row            # onde o TOTAL vai entrar
-        first_data = 3                  # primeira linha de dados (linha 1=header, 2=inicial, 3=1º evento)
-        ws.cell(row=sum_row, column=1, value="TOTAL").fill = HEADER_FILL
+        # --- Depois de já ter escrito todas as linhas de 'eventos' ---
+        last_data_row = ws.max_row   # aqui paramos no fim dos dados de fato
+        
+        # 1) insere uma linha em branco
+        ws.append([''] * len(headers))
+        ws.append([''] * len(headers))
+        total_row = ws.max_row       # posição do TOTAL
+        ws.cell(row=total_row, column=1, value="TOTAL").fill = HEADER_FILL
+        for col_idx in range(7, len(headers)-1):
+            letter = get_column_letter(col_idx)
+            formula = f"=SUM({letter}3:{letter}{last_data_row})"
+            ws.cell(row=total_row, column=col_idx, value=formula)
+
+                
         for col_idx in range(7, len(headers)-1):
             letter = get_column_letter(col_idx)
             formula = f"=SUM({letter}{first_data}:{letter}{last_data})"
