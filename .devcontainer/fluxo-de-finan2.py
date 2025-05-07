@@ -273,31 +273,29 @@ def main():
             row += ev.get('taxas_extra', []) + [ev.get('abatimentoizacao', 0), ev.get('saldo', 0)]
             ws.append(row)
             
-        # --- define onde acabam os dados de fato ---
+        # 1) Última linha com dados
         last_data_row = ws.max_row
         
-        # 1) insere UMA linha em branco
+        # 2) Insere linha em branco
         ws.append([''] * len(headers))
         
-        # 2) insere a linha do TOTAL
+        # 3) Insere linha de totais
         ws.append([''] * len(headers))
-        total_row = ws.max_row
+        totals_row = ws.max_row
         
-        # 3) escreve o rótulo TOTAL e aplica o HEADER_FILL
-        total_cell = ws.cell(row=total_row, column=1)
-        total_cell.value = "TOTAL"
-        total_cell.fill  = HEADER_FILL
+        # 4) Escreve o rótulo "TOTAIS" na coluna A
+        cell_total = ws.cell(row=totals_row, column=1, value="TOTAIS")
+        cell_total.fill = HEADER_FILL
         
-        # 4) monta as fórmulas SUM(…) do cabeçalho 7 até a penúltima coluna
-        for col_idx in range(7, len(headers) - 1):
-            letter = get_column_letter(col_idx)
-            formula = f"=SUM({letter}3:{letter}{last_data_row})"
-            ws.cell(row=total_row, column=col_idx, value=formula)
-                
-        for col_idx in range(7, len(headers)-1):
-            letter = get_column_letter(col_idx)
-            formula = f"=SUM({letter}{first_data}:{letter}{last_data})"
-            ws.cell(row=sum_row, column=col_idx, value=formula)
+        # 5) Garante que o Excel recalcule fórmulas ao abrir
+        wb.calculation_properties.fullCalcOnLoad = True
+        
+        # 6) Aplica fórmula de soma nas colunas de valores (ajuste o range conforme necessário)
+        first_data_row = 3  # normalmente seus dados começam na linha 3
+        for col_idx in range(7, len(headers)-1):  # ajustável conforme estrutura da planilha
+            col_letter = get_column_letter(col_idx)
+            formula = f"=SUM({col_letter}{first_data_row}:{col_letter}{last_data_row})"
+            ws.cell(row=totals_row, column=col_idx, value=formula)
             
                     
         # formatação
