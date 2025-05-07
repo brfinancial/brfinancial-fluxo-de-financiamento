@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Q3ual o nome do cliente?")
+    cliente = st.text_input("Q4ual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -273,55 +273,31 @@ def main():
             row += ev.get('taxas_extra', []) + [ev.get('abatimentoizacao', 0), ev.get('saldo', 0)]
             ws.append(row)
             
-        # --- depois de já ter inserido TODOS os eventos no worksheet ---
-        
-        # 1) captura onde terminam de fato os dados de evento
+        # 1) Pega última linha de dado
         last_data_row = ws.max_row
         
-        # 2) calcula em Python a soma de cada coluna de valor/taxa
-        #    (coluna 7 até a antepenúltima; pulando as 2 últimas de amortização e saldo)
+        # 2) Calcula em Python as somas das colunas 7 até a penúltima
         sum_cols = []
-        for col_idx in range(7, len(headers) - 2):
-            total = 0
-            for row_idx in range(3, last_data_row + 1):
-                v = ws.cell(row=row_idx, column=col_idx).value or 0
-                # só soma se for numérico
-                if isinstance(v, (int, float)):
-                    total += v
+        for col_idx in range(7, len(headers)-1):
+            total = 0.0
+            for row_idx in range(3, last_data_row+1):
+                val = ws.cell(row=row_idx, column=col_idx).value or 0
+                if isinstance(val, (int, float)):
+                    total += val
             sum_cols.append(total)
         
-        # 3) insere UMA linha em branco
+        # 3) Insere linha em branco
         ws.append([''] * len(headers))
         
-        # 4) insere a linha de TOTAIS
+        # 4) Insere linha de TOTAIS
         ws.append([''] * len(headers))
         totals_row = ws.max_row
         
-        # 5) monta a linha: ['TOTAIS', '', '', '', '', '', soma_col7, soma_col8, ..., '', '']
-        tot_line = ['TOTAIS', '', '', '', '', ''] + sum_cols + ['', '']
-        
-        for col_idx, value in enumerate(tot_line, start=1):
-            cell = ws.cell(row=totals_row, column=col_idx, value=value)
-            if col_idx == 1:
-                cell.fill = HEADER_FILL
-                    
-                    
-        # formatação
-        for col_idx, h in enumerate(headers, 1):
-            for row_idx in range(2, sum_row+1):
-                cell = ws.cell(row=row_idx, column=col_idx)
-                if h == "Data":
-                    cell.number_format = DATE_FORMAT
-                elif h in ["Parcela","Dias no Mês","Dias Corridos"]:
-                    cell.number_format = '0'
-                elif h == "Taxa Efetiva":
-                    cell.number_format = PERCENT_FORMAT
-                else:
-                    cell.number_format = CURRENCY_FORMAT
-        # ajuste colunas
-        for col_cells in ws.columns:
-            width = max(len(str(c.value)) for c in col_cells if c.value is not None)
-            ws.column_dimensions[get_column_letter(col_cells[0].column)].width = width + 2
+        # 5) Preenche TOTAIS
+        # Coluna A = rótulo; colunas 7…penúltima = valores calculados; as duas últimas ficam vazias
+        ws.cell(row=totals_row, column=1, value="TOTAIS").fill = HEADER_FILL
+        for i, soma in enumerate(sum_cols, start=7):
+            ws.cell(row=totals_row, column=i, value=soma)
 
         # Se excedeu parcelas e ainda há saldo devedor
         if parcelas >= 420 and saldo > 0:
