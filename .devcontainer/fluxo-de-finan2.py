@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Q4ual o nome do cliente?")
+    cliente = st.text_input("Q5ual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -298,6 +298,21 @@ def main():
         ws.cell(row=totals_row, column=1, value="TOTAIS").fill = HEADER_FILL
         for i, soma in enumerate(sum_cols, start=7):
             ws.cell(row=totals_row, column=i, value=soma)
+
+        # --- (aqui vem seu bloco de soma e inserção de TOTAIS) ---
+
+        # 7) Ajuste automático de largura das colunas
+        for col_cells in ws.columns:
+            # Calcula a largura máxima necessária para cada coluna
+            max_length = 0
+            column = get_column_letter(col_cells[0].column)
+            for cell in col_cells:
+                if cell.value is not None:
+                    cell_len = len(str(cell.value))
+                    if cell_len > max_length:
+                        max_length = cell_len
+            # Define a largura com um padding extra
+            ws.column_dimensions[column].width = max_length + 2
 
         # Se excedeu parcelas e ainda há saldo devedor
         if parcelas >= 420 and saldo > 0:
