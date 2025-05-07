@@ -60,7 +60,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Qu7al o nome do cliente?")
+    cliente = st.text_input("Qu8al o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -198,6 +198,9 @@ def main():
             total_taxas = sum(extras) + incc
             total_payment = capacidade_pre + extra_val
             abat = total_payment - juros - total_taxas
+            if abat <= 0:
+                st.error(f"O abatimento na parcela {parcelas} é zero ou negativo. Financiamento não viável.")
+                break
             saldo -= abat
             eventos.append({'data': d_evt, 'parcela': '', 'tipo': types_concat, 'valor': total_payment,
                             'juros': juros, 'dias_corridos': dias_corr, 'taxa_efetiva': taxa_eff,
