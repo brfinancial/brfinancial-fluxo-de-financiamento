@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Q5ual o nome do cliente?")
+    cliente = st.text_input("Q6ual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -313,6 +313,28 @@ def main():
                         max_length = cell_len
             # Define a largura com um padding extra
             ws.column_dimensions[column].width = max_length + 2
+
+        # --- reaplicar formatação após inserir a linha de TOTAIS ---
+
+        # ws      -> sua worksheet
+        # headers -> lista de cabeçalhos que você definiu antes
+        # totals_row -> linha onde está seu "TOTAIS"
+        
+        for col_idx, h in enumerate(headers, start=1):
+            for row_idx in range(2, ws.max_row + 1):   # da segunda linha (linha inicial) até o TOTAL
+                cell = ws.cell(row=row_idx, column=col_idx)
+                # Data
+                if h == "Data":
+                    cell.number_format = DATE_FORMAT
+                # Inteiros
+                elif h in ["Parcela", "Dias no Mês", "Dias Corridos"]:
+                    cell.number_format = '0'
+                # Porcentagem
+                elif h == "Taxa Efetiva":
+                    cell.number_format = PERCENT_FORMAT
+                # Moeda
+                else:
+                    cell.number_format = CURRENCY_FORMAT
 
         # Se excedeu parcelas e ainda há saldo devedor
         if parcelas >= 420 and saldo > 0:
