@@ -331,6 +331,9 @@ def main():
                     cell.number_format = CURRENCY_FORMAT  # **Reinserido: 'R$'**
 
         # Totais e formatação (como antes) ...
+        if parcelas >= 420 and saldo > 0:
+            st.error(f"Financiamento de {cliente} não é possível! A quantidade de parcelas excede 420 e o saldo devedor continua positivo.")
+
         # [mantido sem alteração]        
         buf = BytesIO()
         wb.save(buf)
@@ -338,9 +341,6 @@ def main():
         st.download_button("Download Excel", data=buf,
                            file_name=f"financiamento_{cliente}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-        if parcelas >= 420 and saldo > 0:
-            st.error(f"Financiamento de {cliente} não é possível! A quantidade de parcelas excede 420 e o saldo devedor continua positivo.")
 
 
 if __name__ == "__main__":
