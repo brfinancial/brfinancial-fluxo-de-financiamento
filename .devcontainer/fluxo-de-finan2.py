@@ -60,7 +60,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Qu8al o nome do cliente?")
+    cliente = st.text_input("Qu9al o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -237,7 +237,7 @@ def main():
         
         # na inicialização do tracker pós-entrega, use last_pre_event:
         tracker_pos = PaymentTracker(dia_pagamento, taxa_pos)
-        tracker_pos.last_date = last_pre_event  # **Agora aponta para último evento pré-entrega**
+        tracker_pos.last_date = last_pre_event
 
         # fluxo pós-entrega (permanece igual, mas com dias_corridos corretos)
         prev_date = data_entrega
@@ -248,7 +248,7 @@ def main():
 
         # 3) PÓS-ENTREGA --------------------------------------------------
         tracker_pos = PaymentTracker(dia_pagamento, taxa_pos)
-        tracker_pos.last_date = last_pre_date or ent
+        tracker_pos.last_date = last_pre_date
         prev_date = data_entrega
         cursor = data_entrega
         parcelas = 1
