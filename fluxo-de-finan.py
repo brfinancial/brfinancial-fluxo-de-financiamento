@@ -51,8 +51,8 @@ class PaymentTracker:
 
 # --- App Streamlit ---
 def main():
-    st.set_page_config(page_title="Gerador de Planilha de Financiamento", layout="centered")
-    st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
+    st.set_page_config(page_title="Br Financial - Simulador de Financiamento", layout="centered")
+    st.title("Bem-vindo ao simulador de financiamento da Br Financial!")
 
     # Entradas principais
     cliente = st.text_input("Qual o nome do cliente?")
