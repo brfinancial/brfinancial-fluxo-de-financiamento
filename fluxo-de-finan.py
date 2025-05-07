@@ -12,7 +12,7 @@ TAXA_EMISSAO_CCB = 1500.0
 TAXA_ALIENACAO_FIDUCIARIA = 2000.0
 TAXA_REGISTRO_FIXA = 1500.0
 TAXA_SEGURO_PRESTAMISTA_PCT = 0.083  # 8.3% pós-entrega
-TAXA_INCC = 0.005  # 0.5% pré-entrega
+TAXA_INCC = 0.0039  # 0.5% pré-entrega
 TAXA_IPCA = 0.005  # 0.5% pós-entrega
 
 HEADER_FILL = PatternFill(start_color="FFD3D3D3", end_color="FFD3D3D3", fill_type="solid")
