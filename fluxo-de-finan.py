@@ -55,7 +55,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Q6ual o nome do cliente?")
+    cliente = st.text_input("Qual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -86,37 +86,37 @@ def main():
 
     # Pagamentos não recorrentes
     st.subheader("Pagamentos Não-Recorrentes")
-    n_non_rec = st.number_input("Quantos pagamentos não recorrentes terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
+    n_non_rec = st.number_input("Quantos pagamentos não recorrentes você gostaria de adicionar? (Caso não tenha pagamentos não recorrentes, deixe em branco)", min_value=0, step=1)
     non_rec = []
     for i in range(int(n_non_rec)):
         d_date = st.date_input(f"Data do pagamento {i+1}", key=f"nr_d_{i}")
         d = dt.combine(d_date, time())
         v = st.number_input(f"Valor pagamento {i+1} (R$)", min_value=0.0, step=0.01, key=f"nr_v_{i}")
         desc = st.text_input(f"Descrição do pagamento {i+1}", key=f"nr_desc_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"nr_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"nr_assoc_{i}")
         if assoc:
             d = adjust_day(d, dia_pagamento)
         non_rec.append({'data': d, 'tipo': desc, 'valor': v, 'assoc': assoc})
 
     # Séries semestrais e anuais
     st.subheader("Pagamentos Semestrais Recorrentes")
-    n_semi = st.number_input("Quantos pagamentos recorrentes semestrais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
+    n_semi = st.number_input("Quantos pagamentos semestrais recorrentes você gostaria de adicionar? (Caso não tenha pagamentos semestrais recorrentes, deixe em branco)", min_value=0, step=1)
     semi_series = []
     for i in range(int(n_semi)):
         d0_date = st.date_input(f"Data das parcelas semestrais {i+1}", key=f"s_d0_{i}")
         d0 = dt.combine(d0_date, time())
         v = st.number_input(f"Valor da parcela semestral {i+1} (R$)", min_value=0.0, step=0.01, key=f"s_v_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"s_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"s_assoc_{i}")
         semi_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Semestral'})
 
     st.subheader("Pagamentos Anuais Recorrentes")
-    n_ann = st.number_input("Quantos pagamentos recorrentes anuais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
+    n_ann = st.number_input("Quantos pagamentos anuais recorrentes você gostaria de adicionar? (Caso não tenha pagamentos anuais recorrentes, deixe em branco)", min_value=0, step=1)
     annual_series = []
     for i in range(int(n_ann)):
         d0_date = st.date_input(f"Data das parcelas anuais {i+1}", key=f"a_d0_{i}")
         d0 = dt.combine(d0_date, time())
         v = st.number_input(f"Valor da parcela anual {i+1} (R$)", min_value=0.0, step=0.01, key=f"a_v_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"a_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"a_assoc_{i}")
         annual_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Anual'})
 
     # Geração da planilha
