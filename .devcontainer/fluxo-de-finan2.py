@@ -53,7 +53,7 @@ def main():
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Q2ual o nome do cliente?")
+    cliente = st.text_input("Q3ual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
     taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
@@ -273,30 +273,38 @@ def main():
             row += ev.get('taxas_extra', []) + [ev.get('abatimentoizacao', 0), ev.get('saldo', 0)]
             ws.append(row)
             
-        # 1) Última linha com dados
+        # --- depois de já ter inserido TODOS os eventos no worksheet ---
+        
+        # 1) captura onde terminam de fato os dados de evento
         last_data_row = ws.max_row
         
-        # 2) Insere linha em branco
+        # 2) calcula em Python a soma de cada coluna de valor/taxa
+        #    (coluna 7 até a antepenúltima; pulando as 2 últimas de amortização e saldo)
+        sum_cols = []
+        for col_idx in range(7, len(headers) - 2):
+            total = 0
+            for row_idx in range(3, last_data_row + 1):
+                v = ws.cell(row=row_idx, column=col_idx).value or 0
+                # só soma se for numérico
+                if isinstance(v, (int, float)):
+                    total += v
+            sum_cols.append(total)
+        
+        # 3) insere UMA linha em branco
         ws.append([''] * len(headers))
         
-        # 3) Insere linha de totais
+        # 4) insere a linha de TOTAIS
         ws.append([''] * len(headers))
         totals_row = ws.max_row
         
-        # 4) Escreve o rótulo "TOTAIS" na coluna A
-        cell_total = ws.cell(row=totals_row, column=1, value="TOTAIS")
-        cell_total.fill = HEADER_FILL
+        # 5) monta a linha: ['TOTAIS', '', '', '', '', '', soma_col7, soma_col8, ..., '', '']
+        tot_line = ['TOTAIS', '', '', '', '', ''] + sum_cols + ['', '']
         
-        # 5) Garante que o Excel recalcule fórmulas ao abrir
-        wb.calculation_properties.fullCalcOnLoad = True
-        
-        # 6) Aplica fórmula de soma nas colunas de valores (ajuste o range conforme necessário)
-        first_data_row = 3  # normalmente seus dados começam na linha 3
-        for col_idx in range(7, len(headers)-1):  # ajustável conforme estrutura da planilha
-            col_letter = get_column_letter(col_idx)
-            formula = f"=SUM({col_letter}{first_data_row}:{col_letter}{last_data_row})"
-            ws.cell(row=totals_row, column=col_idx, value=formula)
-            
+        for col_idx, value in enumerate(tot_line, start=1):
+            cell = ws.cell(row=totals_row, column=col_idx, value=value)
+            if col_idx == 1:
+                cell.fill = HEADER_FILL
+                    
                     
         # formatação
         for col_idx, h in enumerate(headers, 1):
