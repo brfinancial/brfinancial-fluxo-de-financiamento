@@ -364,8 +364,8 @@ def main():
         wb.save(buf)
         buf.seek(0)
         st.download_button("Download Excel", data=buf,
-                           file_name=f"financiamento_{cliente}.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                            file_name=f"financiamento_{cliente}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == "__main__":
     main()
