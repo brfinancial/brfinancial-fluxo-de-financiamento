@@ -56,7 +56,7 @@ def main():
     cliente = st.text_input("1Qual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
-    taxas_pre_sel = st.selectbox(f"Selecione o empreendimento", ["Residencial Max Club Jarinu", "Residencial Itapetininga", "Recanto dos passarinhos marrons"])
+    taxas_pre_sel = st.selectbox(f"Selecione o empreendimento", ["Residencial Max Club Jarinu", "Residencial Itapetininga"])
 
     #Residencial Max Club Jarinu
     if taxas_pre_sel == ("Residencial Max Club Jarinu"):
