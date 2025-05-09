@@ -12,12 +12,10 @@ TAXA_EMISSAO_CCB = 1500.0
 TAXA_ALIENACAO_FIDUCIARIA = 2000.0
 TAXA_REGISTRO_FIXA = 1500.0
 TAXA_SEGURO_PRESTAMISTA_PCT = 0.083  # 8.3% pós-entrega
-TAXA_INCC = 0.0039 
-TAXA_IPCA = 0.0037  
+TAXA_INCC = 0.005  # 0.5% pré-entrega
+TAXA_IPCA = 0.005  # 0.5% pós-entrega
 
 HEADER_FILL = PatternFill(start_color="FFD3D3D3", end_color="FFD3D3D3", fill_type="solid")
-LIGHT_RED_FILL = PatternFill(start_color="FFFFC7CE", end_color="FFFFC7CE", fill_type="solid")
-LIGHT_GREEN_FILL = PatternFill(start_color="FFC6EFCE", end_color="FFC6EFCE", fill_type="solid")
 DATE_FORMAT = 'dd/mm/yyyy'
 CURRENCY_FORMAT = '"R$" #,##0.00'
 PERCENT_FORMAT = '0.00%'
@@ -51,72 +49,82 @@ class PaymentTracker:
 
 # --- App Streamlit ---
 def main():
-    st.set_page_config(page_title="Br Financial - Simulador de Financiamento", layout="centered")
-    st.title("Bem-vindo ao simulador de financiamento da Br Financial!")
+    st.set_page_config(page_title="Gerador de Planilha de Financiamento", layout="centered")
+    st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
     # Entradas principais
-    cliente = st.text_input("Qual o nome do cliente?")
+    cliente = st.text_input("1Qual o nome do cliente?")
     valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
     dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
-    taxa_pre = st.number_input("Taxa mensal de juros ANTES da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
-    taxa_pos = st.number_input("Taxa mensal de juros DEPOIS da entrega das chaves (%)", min_value=0.0, step=0.01) / 100
+    taxas_pre_sel = st.selectbox(f"Selecione o empreendimento", ["Residencial Max Club Jarinu", "Residencial Itapetininga", "Recanto dos passarinhos marrons"])
+
+    #Residencial Max Club Jarinu
+    if taxas_pre_sel == ("Residencial Max Club Jarinu"):
+        taxa_pre = (0.005)
+        taxas_extras = []
+        pct = (0.002)
+        periodo = "pré-entrega da chave"
+        taxas_extras.append({'pct': pct, 'periodo': periodo})
+    if taxas_pre_sel == ("Residencial Max Club Jarinu"):
+        taxa_pos = (0.005)
+
+    #Residencial Itapetininga
+    if taxas_pre_sel == ("Residencial Itapetininga"):
+        taxa_pre = (0.008)
+    if taxas_pre_sel == ("Residencial Itapetininga"):
+        taxa_pos = (0.008)     
+        taxas_extras = []
+        pct = (0.002)
+        periodo = "pós-entrega da chave"
+        taxas_extras.append({'pct': pct, 'periodo': periodo})
 
     # >>> ALTERAÇÃO 4: Data-base definida pelo usuário em vez de dt.now()
     data_base_date = st.date_input("Data-base (data de assinatura do contrato)", value=dt.now().date())  # Alteração 4
     data_base = dt.combine(data_base_date, time())  # Alteração 4
 
-    # Taxas extras
-    st.subheader("Taxas Extras")
-    n_extras = st.number_input("Quantas taxas quer incluir nas parcelas? (Caso não tenha taxas extras, deixe em branco)", min_value=0, max_value=7, step=1)
-    taxas_extras = []
-    for i in range(int(n_extras)):
-        pct = st.number_input(f"Taxa extra {i+1} (%)", min_value=0.0, step=0.01, key=f"pct_{i}") / 100
-        periodo = st.selectbox(f"Período da taxa extra {i+1}", ["pré-entrega da chave", "pós-entrega da chave", "ambos"], key=f"periodo_{i}")
-        taxas_extras.append({'pct': pct, 'periodo': periodo})
-
     # Datas e capacidades
     capacidade_pre = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais ANTES da entrega das chaves? (R$)", min_value=0.0, step=0.01)
-    data_inicio_pre_date = st.date_input("Data início dos pagamentos mensais pré-entrega")
-    data_entrega_date = st.date_input("Data de ENTREGA das chaves")
+    data_inicio_pre_date = st.date_input("Data início dos pagamentos mensais durante a construção (pré-entrega)")
+    data_entrega_date = st.date_input("Data de CONCLUSÃO da obra e entrega das chaves")
     data_inicio_pre = dt.combine(data_inicio_pre_date, time())
     data_entrega = dt.combine(data_entrega_date, time())
     fgts = st.number_input("Valor do FGTS para abatimento do saldo devedor (R$)", min_value=0.0, step=0.01)
     fin_banco = st.number_input("Valor financiado pelo banco (abatimento no saldo devedor) (R$)", min_value=0.0, step=0.01)
-    capacidade_pos = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais DEPOIS da entrega das chaves? (R$)", min_value=0.0, step=0.01)
+    capacidade_pos = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais DEPOIS da entrega das conclusão da obra? (R$)", min_value=0.0, step=0.01)
 
     # Pagamentos não recorrentes
-    st.subheader("Pagamentos Não-Recorrentes")
-    n_non_rec = st.number_input("Quantos pagamentos não recorrentes você gostaria de adicionar? (Caso não tenha pagamentos não recorrentes, deixe em branco)", min_value=0, step=1)
+    st.subheader("Pagamentos adicionais às parcelas")
+    n_non_rec = st.number_input("Quantos pagamentos adicionais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     non_rec = []
     for i in range(int(n_non_rec)):
         d_date = st.date_input(f"Data do pagamento {i+1}", key=f"nr_d_{i}")
         d = dt.combine(d_date, time())
         v = st.number_input(f"Valor pagamento {i+1} (R$)", min_value=0.0, step=0.01, key=f"nr_v_{i}")
         desc = st.text_input(f"Descrição do pagamento {i+1}", key=f"nr_desc_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"nr_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"nr_assoc_{i}")
         if assoc:
             d = adjust_day(d, dia_pagamento)
         non_rec.append({'data': d, 'tipo': desc, 'valor': v, 'assoc': assoc})
 
     # Séries semestrais e anuais
-    st.subheader("Pagamentos Semestrais Recorrentes")
-    n_semi = st.number_input("Quantos pagamentos semestrais recorrentes você gostaria de adicionar? (Caso não tenha pagamentos semestrais recorrentes, deixe em branco)", min_value=0, step=1)
+    st.subheader("Pagamentos Semestrais")
+    n_semi = st.number_input("Quantos pagamentos recorrentes semestrais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     semi_series = []
     for i in range(int(n_semi)):
         d0_date = st.date_input(f"Data das parcelas semestrais {i+1}", key=f"s_d0_{i}")
         d0 = dt.combine(d0_date, time())
         v = st.number_input(f"Valor da parcela semestral {i+1} (R$)", min_value=0.0, step=0.01, key=f"s_v_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"s_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"s_assoc_{i}")
         semi_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Semestral'})
 
-    st.subheader("Pagamentos Anuais Recorrentes")
-    n_ann = st.number_input("Quantos pagamentos anuais recorrentes você gostaria de adicionar? (Caso não tenha pagamentos anuais recorrentes, deixe em branco)", min_value=0, step=1)
+    st.subheader("Pagamentos Anuais")
+    n_ann = st.number_input("Quantos pagamentos recorrentes anuais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     annual_series = []
     for i in range(int(n_ann)):
         d0_date = st.date_input(f"Data das parcelas anuais {i+1}", key=f"a_d0_{i}")
         d0 = dt.combine(d0_date, time())
         v = st.number_input(f"Valor da parcela anual {i+1} (R$)", min_value=0.0, step=0.01, key=f"a_v_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela mensal mais próxima? {i+1}", key=f"a_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"a_assoc_{i}")
         annual_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Anual'})
 
     # Geração da planilha
@@ -199,11 +207,8 @@ def main():
             prev_date = d_evt
             cursor += relativedelta(months=1)
 
-        # guarda última data de pré para pós
-        last_pre_date = prev_date
-
         # 2) ENTREGA ------------------------------------------------------
-        ent = adjust_day(data_entrega, dia_pagamento)
+        ent = data_entrega
         zero_extras = [0.0] * len(taxas_extras)
         # abatimentos
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
@@ -227,10 +232,26 @@ def main():
                         'juros': 0.0, 'dias_corridos': '', 'taxa_efetiva': '',
                         'incc': 0.0, 'ipca': 0.0, 'taxas_extra': zero_extras,
                         'Total de mudança (R$)': fee, 'saldo': saldo})
+        
+        #Data da entrega
+        eventos.append({
+            'data': data_entrega,
+            'parcela': '',
+            'tipo': 'Data da entrega das chaves',
+            'valor': 0.0,
+            'juros': 0.0,
+            'dias_corridos': 0,
+            'taxa_efetiva': 0.0,
+            'incc': 0.0,
+            'ipca': 0.0,
+            'taxas_extra': [0.0] * len(taxas_extras),
+            'Total de mudança (R$)': 0.0,
+            'saldo': saldo
+        })
 
         # 3) PÓS-ENTREGA --------------------------------------------------
         tracker_pos = PaymentTracker(dia_pagamento, taxa_pos)
-        tracker_pos.last_date = tracker_pre.last_date
+        tracker_pos.last_date = data_entrega
         prev_date = data_entrega
         cursor = data_entrega
         parcelas = 1
@@ -315,8 +336,6 @@ def main():
         for i, soma in enumerate(sum_cols, start=7):
             ws.cell(row=totals_row, column=i, value=soma)
 
-        # --- (aqui vem seu bloco de soma e inserção de TOTAIS) ---
-
         # 7) Ajuste automático de largura das colunas
         for col_cells in ws.columns:
             # Calcula a largura máxima necessária para cada coluna
@@ -330,11 +349,6 @@ def main():
             # Define a largura com um padding extra
             ws.column_dimensions[column].width = max_length + 2
 
-        # --- reaplicar formatação após inserir a linha de TOTAIS ---
-
-        # ws      -> sua worksheet
-        # headers -> lista de cabeçalhos que você definiu antes
-        # totals_row -> linha onde está seu "TOTAIS"
         
         for col_idx, h in enumerate(headers, start=1):
             for row_idx in range(2, ws.max_row + 1):   # da segunda linha (linha inicial) até o TOTAL
@@ -364,8 +378,8 @@ def main():
         wb.save(buf)
         buf.seek(0)
         st.download_button("Download Excel", data=buf,
-                            file_name=f"financiamento_{cliente}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                           file_name=f"Financiamento {cliente}.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 if __name__ == "__main__":
     main()
