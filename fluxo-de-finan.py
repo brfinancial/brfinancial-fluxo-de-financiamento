@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 from io import BytesIO
 import calendar
 from datetime import datetime as dt, time
@@ -7,20 +8,35 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-# --- Configurações fixas ---
-TAXA_EMISSAO_CCB = 1500.0
-TAXA_ALIENACAO_FIDUCIARIA = 2000.0
-TAXA_REGISTRO_FIXA = 1500.0
-TAXA_SEGURO_PRESTAMISTA_PCT = 0.083  # 8.3% pós-entrega
-TAXA_INCC = 0.005  # 0.5% pré-entrega
-TAXA_IPCA = 0.005  # 0.5% pós-entrega
+# --- Auxiliares de taxa externa ---
+def load_taxas(filepath: str) -> dict:
+    taxas = {}
+    path = Path(filepath)
+    if not path.exists():
+        st.error(f"Arquivo de taxas não encontrado: {filepath}")
+        return taxas
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read().strip()
+    blocos = [b.strip() for b in content.split("\n\n") if b.strip()]
+    for bloco in blocos:
+        linhas = bloco.splitlines()
+        nome = linhas[0].strip()
+        taxas[nome] = {}
+        for linha in linhas[1:]:
+            if '=' in linha:
+                chave, valor = linha.split('=', 1)
+                try:
+                    taxas[nome][chave.strip()] = float(valor.strip())
+                except ValueError:
+                    taxas[nome][chave.strip()] = valor.strip()
+    return taxas
 
+# --- Funções de cálculo ---
 HEADER_FILL = PatternFill(start_color="FFD3D3D3", end_color="FFD3D3D3", fill_type="solid")
 DATE_FORMAT = 'dd/mm/yyyy'
 CURRENCY_FORMAT = '"R$" #,##0.00'
 PERCENT_FORMAT = '0.00%'
 
-# --- Auxiliares ---
 def adjust_day(date, preferred_day):
     try:
         return date.replace(day=preferred_day)
@@ -36,13 +52,12 @@ class PaymentTracker:
         self.last_date = None
         self.dia = dia_pagamento
         self.taxa = taxa_juros
-
     def calculate(self, current_date, saldo):
         if self.last_date is None:
             self.last_date = current_date
             return 0.0, 0, 0.0
         dias_corridos = (current_date - self.last_date).days
-        taxa_efetiva = self.taxa * (dias_corridos / 30)  # agora usa 30 como base fixa
+        taxa_efetiva = self.taxa * (dias_corridos / 30)
         juros = saldo * taxa_efetiva
         self.last_date = current_date
         return juros, dias_corridos, taxa_efetiva
@@ -52,49 +67,50 @@ def main():
     st.set_page_config(page_title="Gerador de Planilha de Financiamento", layout="centered")
     st.title("Bem-vindo ao gerador de financiamento da Br Financial!")
 
-    # Entradas principais
-    cliente = st.text_input("Qual o nome do cliente?")
-    valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
-    dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
-    taxas_pre_sel = st.selectbox(f"Selecione o empreendimento", ["Residencial Max Club Jarinu", "Residencial Itapetininga"])
+    # Carrega taxas externas
+    taxas_path = 'taxas.txt'
+    taxas_por_emp = load_taxas(taxas_path)
+    
+    # Entradas básicas
+    cliente = st.text_input("1. Nome do cliente:")
+    valor_imovel = st.number_input("Valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
+    dia_pagamento = st.number_input("Dia preferencial de pagamento (1-31)", min_value=1, max_value=31, step=1)
 
-    #Residencial Max Club Jarinu
-    if taxas_pre_sel == ("Residencial Max Club Jarinu"):
-        taxa_pre = (0.005)
-        taxas_extras = []
-        pct = (0.002)
-        periodo = "pré-entrega da chave"
-        taxas_extras.append({'pct': pct, 'periodo': periodo})
-    if taxas_pre_sel == ("Residencial Max Club Jarinu"):
-        taxa_pos = (0.005)
+    # Selectbox dinâmico
+    empreendimento = st.selectbox("Selecione o empreendimento", options=list(taxas_por_emp.keys()))
+    taxas_sel = taxas_por_emp.get(empreendimento, {})
+    # Extrai taxas específicas
+    TAXA_EMISSAO_CCB = taxas_sel.get('TAXA_EMISSAO_CCB', 0.0)
+    TAXA_ALIENACAO_FIDUCIARIA = taxas_sel.get('TAXA_ALIENACAO_FIDUCIARIA', 0.0)
+    TAXA_REGISTRO_FIXA = taxas_sel.get('TAXA_REGISTRO_FIXA', 0.0)
+    TAXA_SEGURO_PRESTAMISTA_PCT = taxas_sel.get('TAXA_SEGURO_PRESTAMISTA_PCT', 0.0)
+    TAXA_INCC = taxas_sel.get('TAXA_INCC', 0.0)
+    TAXA_IPCA = taxas_sel.get('TAXA_IPCA', 0.0)
+    # definir pré e pós
+    taxa_pre = taxas_sel.get('TAXA_INCC', 0.0)
+    taxa_pos = taxas_sel.get('TAXA_IPCA', 0.0)
+    # extras (percentuais)
+    taxas_extras = []
+    for chave, val in taxas_sel.items():
+        if chave.endswith('_PCT') and chave not in ['TAXA_SEGURO_PRESTAMISTA_PCT']:
+            periodo = 'pré-entrega da chave' if 'INCC' in chave else 'pós-entrega da chave'
+            taxas_extras.append({'pct': val, 'periodo': periodo})
 
-    #Residencial Itapetininga
-    if taxas_pre_sel == ("Residencial Itapetininga"):
-        taxa_pre = (0.008)
-    if taxas_pre_sel == ("Residencial Itapetininga"):
-        taxa_pos = (0.008)     
-        taxas_extras = []
-        pct = (0.002)
-        periodo = "pós-entrega da chave"
-        taxas_extras.append({'pct': pct, 'periodo': periodo})
-
-    # >>> ALTERAÇÃO 4: Data-base definida pelo usuário em vez de dt.now()
-    data_base_date = st.date_input("Data-base (data de assinatura do contrato)", value=dt.now().date())  # Alteração 4
-    data_base = dt.combine(data_base_date, time())  # Alteração 4
-
-    # Datas e capacidades
-    capacidade_pre = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais ANTES da entrega das chaves? (R$)", min_value=0.0, step=0.01)
-    data_inicio_pre_date = st.date_input("Data início dos pagamentos mensais durante a construção (pré-entrega)")
-    data_entrega_date = st.date_input("Data de CONCLUSÃO da obra e entrega das chaves")
-    data_inicio_pre = dt.combine(data_inicio_pre_date, time())
-    data_entrega = dt.combine(data_entrega_date, time())
-    fgts = st.number_input("Valor do FGTS para abatimento do saldo devedor (R$)", min_value=0.0, step=0.01)
-    fin_banco = st.number_input("Valor financiado pelo banco (abatimento no saldo devedor) (R$)", min_value=0.0, step=0.01)
-    capacidade_pos = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais DEPOIS da entrega das conclusão da obra? (R$)", min_value=0.0, step=0.01)
+    # Datas e valores adicionais
+    data_base_date = st.date_input("Data-base (assinatura)", value=dt.now().date())
+    data_base = dt.combine(data_base_date, time())
+    capacidade_pre = st.number_input("Capacidade pré-entrega (R$)", min_value=0.0, step=0.01)
+    data_inicio_pre = dt.combine(st.date_input("Início pré-entrega"), time())
+    data_entrega = dt.combine(st.date_input("Data de entrega das chaves"), time())
+    fgts = st.number_input("FGTS para abatimento (R$)", min_value=0.0, step=0.01)
+    fin_banco = st.number_input("Financiamento banco (R$)", min_value=0.0, step=0.01)
+    capacidade_pos_antes = st.number_input("Capacidade pós-entrega (R$)", min_value=0.0, step=0.01)
+    val_parcela_banco = st.number_input("Parcela banco (R$)", min_value=0.0, step=0.01)
+    capacidade_pos = capacidade_pos_antes - val_parcela_banco
 
     # Pagamentos não recorrentes
-    st.subheader("Pagamentos adicionais às parcelas")
-    n_non_rec = st.number_input("Quantos pagamentos adicionais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
+    st.subheader("Pagamentos Não-Recorrentes")
+    n_non_rec = st.number_input("Quantos pagamentos não recorrentes terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     non_rec = []
     for i in range(int(n_non_rec)):
         d_date = st.date_input(f"Data do pagamento {i+1}", key=f"nr_d_{i}")
@@ -107,7 +123,7 @@ def main():
         non_rec.append({'data': d, 'tipo': desc, 'valor': v, 'assoc': assoc})
 
     # Séries semestrais e anuais
-    st.subheader("Pagamentos Semestrais")
+    st.subheader("Pagamentos Semestrais Recorrentes")
     n_semi = st.number_input("Quantos pagamentos recorrentes semestrais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     semi_series = []
     for i in range(int(n_semi)):
@@ -117,7 +133,7 @@ def main():
         assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"s_assoc_{i}")
         semi_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Semestral'})
 
-    st.subheader("Pagamentos Anuais")
+    st.subheader("Pagamentos Anuais Recorrentes")
     n_ann = st.number_input("Quantos pagamentos recorrentes anuais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     annual_series = []
     for i in range(int(n_ann)):
@@ -371,6 +387,8 @@ def main():
             st.error(
                 f"Financiamento de {cliente} não é possível! "
                 "A quantidade de parcelas excede 420 e o saldo devedor continua positivo."
+                f"Restariam {cliente} do saldo devedor."
+                "Simule novamente"
                 )
         
         # download
