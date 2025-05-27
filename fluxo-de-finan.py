@@ -57,8 +57,8 @@ class PaymentTracker:
             self.last_date = current_date
             return 0.0, 0, 0.0
         dias_corridos = (current_date - self.last_date).days
-        taxa_efetiva = self.taxa * (dias_corridos / 30)
-        juros = saldo * taxa_efetiva
+        taxa_efetiva = ((1+self.taxa) ** (dias_corridos / 30)-1)
+        juros = saldo * ((1+self.taxa) ** (dias_corridos / 30)-1)
         self.last_date = current_date
         return juros, dias_corridos, taxa_efetiva
 
@@ -72,23 +72,23 @@ def main():
     taxas_por_emp = load_taxas(taxas_path)
     
     # Entradas básicas
-    cliente = st.text_input("1. Nome do cliente:")
-    valor_imovel = st.number_input("Valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
-    dia_pagamento = st.number_input("Dia preferencial de pagamento (1-31)", min_value=1, max_value=31, step=1)
+    cliente = st.text_input("Qual o nome do cliente?")
+    valor_imovel = st.number_input("Qual o valor total do imóvel (R$)", min_value=0.0, step=0.01, format="%.2f")
+    dia_pagamento = st.number_input("Qual o dia preferencial de pagamento das parcelas mensais? (1-31)", min_value=1, max_value=31, step=1)
 
     # Selectbox dinâmico
     empreendimento = st.selectbox("Selecione o empreendimento", options=list(taxas_por_emp.keys()))
     taxas_sel = taxas_por_emp.get(empreendimento, {})
     # Extrai taxas específicas
     TAXA_EMISSAO_CCB = taxas_sel.get('TAXA_EMISSAO_CCB', 0.0)
-    TAXA_ALIENACAO_FIDUCIARIA = taxas_sel.get('TAXA_ALIENACAO_FIDUCIARIA', 0.0)
-    TAXA_REGISTRO_FIXA = taxas_sel.get('TAXA_REGISTRO_FIXA', 0.0)
+    TAXA_EMISSAO_CONTRATO_ALIENACAO_FIDUCIARIA = taxas_sel.get('TAXA_EMISSAO_CONTRATO_ALIENACAO_FIDUCIARIA', 0.0)
+    TAXA_REGISTRO_IMOVEL = taxas_sel.get('TAXA_REGISTRO_IMOVEL', 0.0)
+    TAXA_ESCRITURA_IMOVEL = taxas_sel.get('TAXA_ESCRITURA_IMOVEL',0.0)
     TAXA_SEGURO_PRESTAMISTA_PCT = taxas_sel.get('TAXA_SEGURO_PRESTAMISTA_PCT', 0.0)
     TAXA_INCC = taxas_sel.get('TAXA_INCC', 0.0)
     TAXA_IPCA = taxas_sel.get('TAXA_IPCA', 0.0)
-    # definir pré e pós
-    taxa_pre = taxas_sel.get('TAXA_INCC', 0.0)
-    taxa_pos = taxas_sel.get('TAXA_IPCA', 0.0)
+    taxa_pre = taxas_sel.get('taxa_pre', 0.0)
+    taxa_pos = taxas_sel.get('taxa_pos', 0.0)
     # extras (percentuais)
     taxas_extras = []
     for chave, val in taxas_sel.items():
@@ -97,33 +97,33 @@ def main():
             taxas_extras.append({'pct': val, 'periodo': periodo})
 
     # Datas e valores adicionais
-    data_base_date = st.date_input("Data-base (assinatura)", value=dt.now().date())
+    data_base_date = st.date_input("Data-base (data de assinatura do contrato)", value=dt.now().date())
     data_base = dt.combine(data_base_date, time())
-    capacidade_pre = st.number_input("Capacidade pré-entrega (R$)", min_value=0.0, step=0.01)
-    data_inicio_pre = dt.combine(st.date_input("Início pré-entrega"), time())
-    data_entrega = dt.combine(st.date_input("Data de entrega das chaves"), time())
-    fgts = st.number_input("FGTS para abatimento (R$)", min_value=0.0, step=0.01)
-    fin_banco = st.number_input("Financiamento banco (R$)", min_value=0.0, step=0.01)
-    capacidade_pos_antes = st.number_input("Capacidade pós-entrega (R$)", min_value=0.0, step=0.01)
-    val_parcela_banco = st.number_input("Parcela banco (R$)", min_value=0.0, step=0.01)
+    capacidade_pre = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais ANTES da entrega das chaves? (R$)", min_value=0.0, step=0.01)
+    data_inicio_pre = dt.combine(st.date_input("Data início dos pagamentos mensais durante a construção (pré-entrega)"), time())
+    data_entrega = dt.combine(st.date_input("Data de CONCLUSÃO da obra e entrega das chaves"), time())
+    fgts = st.number_input("Valor do FGTS para abatimento do saldo devedor (R$)", min_value=0.0, step=0.01)
+    fin_banco = st.number_input("Valor financiado pelo banco (abatimento no saldo devedor) (R$)", min_value=0.0, step=0.01)
+    capacidade_pos_antes = st.number_input("Qual a capacidade de pagamento do cliente nas parcelas mensais DEPOIS da entrega das conclusão da obra? (R$)", min_value=0.0, step=0.01)
+    val_parcela_banco = st.number_input("Qual o valor da parcela mensal para pagamento do financiamento do banco? (R$)", min_value=0.0, step=0.01)
     capacidade_pos = capacidade_pos_antes - val_parcela_banco
 
     # Pagamentos não recorrentes
-    st.subheader("Pagamentos Não-Recorrentes")
-    n_non_rec = st.number_input("Quantos pagamentos não recorrentes terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
+    st.subheader("Pagamentos adicionais às parcelas")
+    n_non_rec = st.number_input("Quantos pagamentos adicionais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     non_rec = []
     for i in range(int(n_non_rec)):
         d_date = st.date_input(f"Data do pagamento {i+1}", key=f"nr_d_{i}")
         d = dt.combine(d_date, time())
         v = st.number_input(f"Valor pagamento {i+1} (R$)", min_value=0.0, step=0.01, key=f"nr_v_{i}")
         desc = st.text_input(f"Descrição do pagamento {i+1}", key=f"nr_desc_{i}")
-        assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"nr_assoc_{i}")
+        assoc = st.checkbox(f"Atribuir a parcela normal do mês?", key=f"nr_assoc_{i}")
         if assoc:
             d = adjust_day(d, dia_pagamento)
         non_rec.append({'data': d, 'tipo': desc, 'valor': v, 'assoc': assoc})
 
     # Séries semestrais e anuais
-    st.subheader("Pagamentos Semestrais Recorrentes")
+    st.subheader("Pagamentos Semestrais")
     n_semi = st.number_input("Quantos pagamentos recorrentes semestrais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     semi_series = []
     for i in range(int(n_semi)):
@@ -133,7 +133,7 @@ def main():
         assoc = st.checkbox(f"Atribuir a parcela normal do mês? {i+1}", key=f"s_assoc_{i}")
         semi_series.append({'d0': d0, 'v': v, 'assoc': assoc, 'tipo': 'Pagamento Semestral'})
 
-    st.subheader("Pagamentos Anuais Recorrentes")
+    st.subheader("Pagamentos Anuais")
     n_ann = st.number_input("Quantos pagamentos recorrentes anuais terão? (Caso não haja, deixe zerado)", min_value=0, step=1)
     annual_series = []
     for i in range(int(n_ann)):
@@ -151,13 +151,23 @@ def main():
                 d = series['d0'] + relativedelta(months=6 * n)
                 if series['assoc']:
                     d = adjust_day(d, dia_pagamento)
-                non_rec.append({'data': d, 'tipo': 'Pagamento Semestral', 'valor': series['v'], 'assoc': series['assoc']})
+                non_rec.append({
+                    'data': d,
+                    'tipo': f"{n+1}ª Parcela Semestral",
+                    'valor': series['v'],
+                    'assoc': series['assoc']
+                })
         for series in annual_series:
             for n in range(100):
                 d = series['d0'] + relativedelta(years=n)
                 if series['assoc']:
-                    d = adjust_day(d, dia_pagamento)
-                non_rec.append({'data': d, 'tipo': 'Pagamento Anual', 'valor': series['v'], 'assoc': series['assoc']})
+                    d = adjust_day(d, dia_pagamento) 
+                non_rec.append({
+                    'data': d,
+                    'tipo': f"{n+1}ª Parcela Anual",
+                    'valor': series['v'],
+                    'assoc': series['assoc']
+                })
 
         # --- Separa pré e pós entre non_rec ---
         pre_nr = sorted([e for e in non_rec if e['data'] < data_entrega], key=lambda x: x['data'])
@@ -171,7 +181,7 @@ def main():
             'data': data_base,
             'parcela': '',
             'tipo': 'Data-Base (assinatura do contrato)',
-            'valor': 0.0,
+            'valor': "-",
             'juros': 0.0,
             'dias_corridos': 0,
             'taxa_efetiva': 0.0,
@@ -179,15 +189,17 @@ def main():
             'ipca': 0.0,
             'taxas_extra': [0.0] * len(taxas_extras),
             'Total de mudança (R$)': 0.0,
-            'saldo': saldo
+            'saldo': "-"
         })
 
         tracker_pre = PaymentTracker(dia_pagamento, taxa_pre)
         tracker_pre.last_date = data_base
-
+    
         # 1) PRÉ-ENTREGA ------------------------------------------------
-        prev_date = data_inicio_pre
-        cursor = data_inicio_pre
+        mc_pre = sc_pre = ac_pre = 0
+        pre_count = 1
+        prev_date = cursor = data_inicio_pre
+
         while True:
             d_evt = adjust_day(cursor, dia_pagamento)
             if d_evt >= data_entrega:
@@ -210,18 +222,51 @@ def main():
             extras = [saldo * t['pct'] if t['periodo'] in ['pré-entrega da chave', 'ambos'] else 0.0 for t in taxas_extras]
             total_taxas = sum(extras) + incc
             # soma de associações pré
-            associados = [e for e in pre_nr if e['assoc'] and e['data'] == d_evt]
-            soma_assoc = sum(e['valor'] for e in associados)
-            label_assoc = '' if not associados else ' + ' + ' + '.join(e['tipo'] for e in associados)
-            valor_total = capacidade_pre + soma_assoc
-            abat = valor_total - juros - total_taxas
-            saldo -= abat
-            eventos.append({'data': d_evt, 'parcela': '', 'tipo': 'Pré-Entrega' + label_assoc, 'valor': valor_total,
-                            'juros': juros, 'dias_corridos': dias_corr, 'taxa_efetiva': taxa_eff,
-                            'incc': incc, 'ipca': 0.0, 'taxas_extra': extras,
-                            'Total de mudança (R$)': abat, 'saldo': saldo})
+            # 1) parcela mensal pré (sem associados)
+            valor_parcela = capacidade_pre
+            abat_principal = valor_parcela - juros - total_taxas
+            saldo -= abat_principal
+            eventos.append({
+                'data': d_evt,
+                'parcela': pre_count,
+                'tipo': f"{pre_count}ª Parcela Pré-Entrega",
+                'valor': valor_parcela,
+                'juros': juros,
+                'dias_corridos': dias_corr,
+                'taxa_efetiva': taxa_eff,
+                'incc': incc,
+                'ipca': 0.0,
+                'taxas_extra': extras,
+                'Total de mudança (R$)': abat_principal,
+                'saldo': saldo
+            })
+
+            # 2) cada pagamento adicional associado em linha própria
+            for ev_assoc in [e for e in pre_nr if e['assoc'] and e['data'] == d_evt]:
+                juros_a, dias_a, txef_a = tracker_pre.calculate(ev_assoc['data'], saldo)
+                incc_a = saldo * TAXA_INCC
+                extras_a = [saldo * t['pct'] for t in taxas_extras if t['periodo'] in ['pré-entrega da chave','ambos']]
+                total_taxas_a = incc_a + sum(extras_a)
+                abat_a = ev_assoc['valor'] - juros_a - total_taxas_a
+                saldo -= abat_a
+                eventos.append({
+                    'data': d_evt,
+                    'parcela': '',
+                    'tipo': ev_assoc['tipo'],
+                    'valor': ev_assoc['valor'],
+                    'juros': juros_a,
+                    'dias_corridos': dias_a,
+                    'taxa_efetiva': txef_a,
+                    'incc': incc_a,
+                    'ipca': 0.0,
+                    'taxas_extra': extras_a,
+                    'Total de mudança (R$)': abat_a,
+                    'saldo': saldo
+                })
+            pre_count += 1
             prev_date = d_evt
             cursor += relativedelta(months=1)
+
 
         # 2) ENTREGA ------------------------------------------------------
         ent = data_entrega
@@ -229,39 +274,31 @@ def main():
         # abatimentos
         for desc, v in [('Abatimento FGTS', fgts), ('Abatimento Fin. Banco', fin_banco)]:
             saldo -= v
-            eventos.append({'data': ent, 'parcela': '', 'tipo': desc, 'valor': 0.0,
+            eventos.append({'data': ent, 'parcela': '', 'tipo': desc, 'valor': v,
                             'juros': 0.0, 'dias_corridos': '', 'taxa_efetiva': '',
                             'incc': 0.0, 'ipca': 0.0, 'taxas_extra': zero_extras,
                             'Total de mudança (R$)': v, 'saldo': saldo})
         # taxas de emissão e registro
-        for nome, val in [('Emissão CCB', TAXA_EMISSAO_CCB), ('Alienação Fiduciária', TAXA_ALIENACAO_FIDUCIARIA),
-                          ('Registro', TAXA_REGISTRO_FIXA)]:
+        for nome, val in [('Emissão CCB', TAXA_EMISSAO_CCB), ('Alienação Fiduciária', TAXA_EMISSAO_CONTRATO_ALIENACAO_FIDUCIARIA),
+                          ('Registro', TAXA_REGISTRO_IMOVEL), ('Escritura Imóvel', TAXA_ESCRITURA_IMOVEL)]:
             saldo += val
-            eventos.append({'data': ent, 'parcela': '', 'tipo': 'Taxa ' + nome, 'valor': 0.0,
-                            'juros': 0.0, 'dias_corridos': '', 'taxa_efetiva': '',
-                            'incc': 0.0, 'ipca': 0.0, 'taxas_extra': zero_extras,
-                            'Total de mudança (R$)': val, 'saldo': saldo})
         # seguro prestamista
         fee = saldo * TAXA_SEGURO_PRESTAMISTA_PCT
         saldo += fee
-        eventos.append({'data': ent, 'parcela': '', 'tipo': 'Taxa Seguro Prestamista', 'valor': 0.0,
-                        'juros': 0.0, 'dias_corridos': '', 'taxa_efetiva': '',
-                        'incc': 0.0, 'ipca': 0.0, 'taxas_extra': zero_extras,
-                        'Total de mudança (R$)': fee, 'saldo': saldo})
         
         #Data da entrega
         eventos.append({
             'data': data_entrega,
             'parcela': '',
             'tipo': 'Data da entrega das chaves',
-            'valor': 0.0,
-            'juros': 0.0,
-            'dias_corridos': 0,
-            'taxa_efetiva': 0.0,
-            'incc': 0.0,
-            'ipca': 0.0,
-            'taxas_extra': [0.0] * len(taxas_extras),
-            'Total de mudança (R$)': 0.0,
+            'valor': "-",
+            'juros': "-",
+            'dias_corridos': "-",
+            'taxa_efetiva': "-",
+            'incc': "-",
+            'ipca': "-",
+            'taxas_extra': "-",
+            'Total de mudança (R$)': "-",
             'saldo': saldo
         })
 
@@ -270,8 +307,9 @@ def main():
         tracker_pos.last_date = data_entrega
         prev_date = data_entrega
         cursor = data_entrega
+        post_count = 1
         parcelas = 1
-        while saldo > 0 and parcelas <= 420:
+        while saldo > 0:
             d_evt = adjust_day(cursor + relativedelta(months=1), dia_pagamento)
             # não-recorrentes pós não associados entre prev_date e d_evt
             for ev_nr in [e for e in post_nr if not e['assoc'] and prev_date < e['data'] < d_evt]:
@@ -286,20 +324,51 @@ def main():
                                 'Total de mudança (R$)': abat_nr, 'saldo': saldo})
 
             # parcela mensal pós-entrega (com associações)
-            juros, dias_corr, taxa_eff = tracker_pos.calculate(d_evt, saldo)
+            # 1) parcela mensal pós (sem associados)
+            juros, dias_corr, txef = tracker_pos.calculate(d_evt, saldo)
             ipca = saldo * TAXA_IPCA
-            extras = [saldo * t['pct'] if t['periodo'] in ['pós-entrega da chave', 'ambos'] else 0.0 for t in taxas_extras]
-            total_taxas = sum(extras) + ipca
-            associados = [e for e in post_nr if e['assoc'] and e['data'] == d_evt]
-            soma_assoc = sum(e['valor'] for e in associados)
-            label_assoc = '' if not associados else ' + ' + ' + '.join(e['tipo'] for e in associados)
-            valor_total = capacidade_pos + soma_assoc
-            abat = valor_total - juros - total_taxas
-            saldo -= abat
-            eventos.append({'data': d_evt, 'parcela': parcelas, 'tipo': 'Pós-Entrega' + label_assoc, 'valor': valor_total,
-                            'juros': juros, 'dias_corridos': dias_corr, 'taxa_efetiva': taxa_eff,
-                            'incc': 0.0, 'ipca': ipca, 'taxas_extra': extras,
-                            'Total de mudança (R$)': abat, 'saldo': saldo})
+            extras = [saldo * t['pct'] for t in taxas_extras if t['periodo'] in ['pós-entrega da chave','ambos']]
+            abat_princ = capacidade_pos - juros - (ipca + sum(extras))
+            saldo -= abat_princ
+            eventos.append({
+                'data': d_evt,
+                'parcela': post_count,
+                'tipo': f"{post_count}ª Parcela Pós-Entrega",
+                'valor': capacidade_pos,
+                'juros': juros,
+                'dias_corridos': dias_corr,
+                'taxa_efetiva': txef,
+                'incc': 0.0,
+                'ipca': ipca,
+                'taxas_extra': extras,
+                'Total de mudança (R$)': abat_princ,
+                'saldo': saldo
+            })
+
+            # 2) cada pagamento adicional associado em linha própria
+            for ev_assoc in [e for e in post_nr if e['assoc'] and e['data'] == d_evt]:
+                juros_a, dias_a, txef_a = tracker_pos.calculate(ev_assoc['data'], saldo)
+                ipca_a = saldo * TAXA_IPCA
+                extras_a = [saldo * t['pct'] for t in taxas_extras if t['periodo'] in ['pós-entrega da chave','ambos']]
+                total_taxas_a = ipca_a + sum(extras_a)
+                abat_a = ev_assoc['valor'] - juros_a - total_taxas_a
+                saldo -= abat_a
+                eventos.append({
+                    'data': d_evt,
+                    'parcela': '',
+                    'tipo': ev_assoc['tipo'],
+                    'valor': ev_assoc['valor'],
+                    'juros': juros_a,
+                    'dias_corridos': dias_a,
+                    'taxa_efetiva': txef_a,
+                    'incc': 0.0,
+                    'ipca': ipca_a,
+                    'taxas_extra': extras_a,
+                    'Total de mudança (R$)': abat_a,
+                    'saldo': saldo
+                })
+                
+            post_count += 1
             parcelas += 1
             prev_date = d_evt
             cursor = d_evt
@@ -308,82 +377,46 @@ def main():
         wb = Workbook()
         ws = wb.active
         ws.title = f"Financ-{cliente}"[:31]
-        headers = ["Data","Parcela","Tipo","Dias no Mês","Dias Corridos","Taxa Efetiva","Valor Pago (R$)",
-                   "Juros (R$)","INCC (R$)","IPCA (R$)"]
-        headers += [f"Taxa {i+1} (R$)" for i in range(len(taxas_extras))]
-        headers += ["Total de adições e subtrações (R$)","Saldo Devedor (R$)"]
+
+
+        headers = ["Data","Tipo","Valor Pago (R$)"]
         for i, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=i, value=h)
             cell.fill = HEADER_FILL
             cell.font = Font(bold=True)
         # linha inicial
-        ws.append(["-"]*(len(headers)-1) + [valor_imovel])
+        ws.append(["-", "-", valor_imovel])
         # eventos
         for ev in sorted(eventos, key=lambda x: x['data']):
-            row = [ev['data'], ev.get('parcela', ''), ev['tipo'], days_in_month(ev['data']),
-                   ev.get('dias_corridos', ''), ev.get('taxa_efetiva', ''), ev.get('valor', 0),
-                   ev.get('juros', 0), ev.get('incc', 0), ev.get('ipca', 0)]
-            row += ev.get('taxas_extra', []) + [ev.get('Total de mudança (R$)', 0), ev.get('saldo', 0)]
+            row = [ev['data'], ev['tipo'], ev.get('valor', 0)]
             ws.append(row)
             
-        # 1) Pega última linha de dado
-        last_data_row = ws.max_row
-        
-        # 2) Calcula em Python as somas das colunas 7 até a penúltima
-        sum_cols = []
-        for col_idx in range(7, len(headers)-1):
-            total = 0.0
-            for row_idx in range(3, last_data_row+1):
-                val = ws.cell(row=row_idx, column=col_idx).value or 0
-                if isinstance(val, (int, float)):
-                    total += val
-            sum_cols.append(total)
-        
         # 3) Insere linha em branco
         ws.append([''] * len(headers))
         
         # 4) Insere linha de TOTAIS
-        ws.append([''] * len(headers))
+        soma_total = sum(ev['valor'] for ev in eventos if isinstance(ev['valor'], (int, float)))
+        ws.append(['TOTAIS', '', soma_total])
         totals_row = ws.max_row
-        
-        # 5) Preenche TOTAIS
-        # Coluna A = rótulo; colunas 7…penúltima = valores calculados; as duas últimas ficam vazias
-        ws.cell(row=totals_row, column=1, value="TOTAIS").fill = HEADER_FILL
-        for i, soma in enumerate(sum_cols, start=7):
-            ws.cell(row=totals_row, column=i, value=soma)
+        ws.cell(row=totals_row, column=1).fill = HEADER_FILL
+        ws.cell(row=totals_row, column=1).font = Font(bold=True)
 
-        # 7) Ajuste automático de largura das colunas
-        for col_cells in ws.columns:
-            # Calcula a largura máxima necessária para cada coluna
-            max_length = 0
-            column = get_column_letter(col_cells[0].column)
-            for cell in col_cells:
-                if cell.value is not None:
-                    cell_len = len(str(cell.value))
-                    if cell_len > max_length:
-                        max_length = cell_len
-            # Define a largura com um padding extra
-            ws.column_dimensions[column].width = max_length + 2
-
-        
+        # Formatação de colunas
         for col_idx, h in enumerate(headers, start=1):
-            for row_idx in range(2, ws.max_row + 1):   # da segunda linha (linha inicial) até o TOTAL
+            for row_idx in range(2, ws.max_row + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
-                # Data
-                if h == "Data":
+                if col_idx == 1:
                     cell.number_format = DATE_FORMAT
-                # Inteiros
-                elif h in ["Parcela", "Dias no Mês", "Dias Corridos"]:
-                    cell.number_format = '0'
-                # Porcentagem
-                elif h == "Taxa Efetiva":
-                    cell.number_format = PERCENT_FORMAT
-                # Moeda
                 else:
                     cell.number_format = CURRENCY_FORMAT
 
+        # Ajuste automático de largura
+        for col_cells in ws.columns:
+            max_length = max(len(str(c.value)) for c in col_cells if c.value is not None)
+            ws.column_dimensions[get_column_letter(col_cells[0].column)].width = max_length + 2
+
         # Se excedeu parcelas e ainda há saldo devedor
-        if parcelas >= 420 and saldo > 0:
+        if parcelas > 420 and saldo < 0:
             st.error(
                 f"Financiamento de {cliente} não é possível! "
                 "A quantidade de parcelas excede 420 e o saldo devedor continua positivo."
