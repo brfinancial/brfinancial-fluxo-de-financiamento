@@ -8,13 +8,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-[theme]
-primaryColor="#ffffff"
-backgroundColor="#ff8e55"
-secondaryBackgroundColor="#ff5c12"
-textColor="#ffffff"
-
-
 # --- Auxiliares de taxa externa ---
 def load_taxas(filepath: str) -> dict:
     taxas = {}
